@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:map_firebase/map/osmScreen.dart';
 import 'package:map_firebase/testFile.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 
+import 'map/TestMapScreen.dart';
 import 'map/googleMapScreen.dart';
+import 'map/sfMapScreen.dart';
 import 'mapFirebase.dart';
 
 void main() async {
@@ -21,6 +24,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Flutter Map Firebase',
       theme: ThemeData(
 
@@ -41,7 +45,12 @@ class MyApp extends StatelessWidget {
         '/DataTest': (context) =>  DataTest(),
         '/GoogleMapScreen': (context) =>  GoogleMapScreen(),
         '/StationsMap': (context) =>  StationsMap(),
-        '/GetUserLocation': (context) =>  GetUserLocation(),
+        '/AddNewGarage': (context) =>  AddNewGarage(),
+        '/OsmMap': (context) =>  OsmMap(),
+        '/TestGmap': (context) =>  TestGmap(),
+        '/Directions': (context) =>  Directions(),
+        '/SimpleMap': (context) =>  SimpleMap(),
+        '/SimpleMap2': (context) =>  SimpleMap2(),
       },    );
   }
 }

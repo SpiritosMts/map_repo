@@ -26,8 +26,7 @@ class _GoogleMapScreenState extends State<GoogleMapScreen> {
   /// default marker location sousse
   static double initLat = 35.821430;
   static double initLng = 10.634422;
-  static String theAddress = ""; // create this variable
-  static String theAddressGeocode = ""; // create this variable
+
 
   /// markers array
   final Map<String, Marker> _markers = {};
@@ -36,13 +35,15 @@ class _GoogleMapScreenState extends State<GoogleMapScreen> {
   // Create a CollectionReference called users that references the firestore collection
   CollectionReference garages = FirebaseFirestore.instance.collection('garages');
 
+
+  /// add garage iinformation to firestore
   Future<void> addGarage() {
     // Call the user's CollectionReference to add a new user
     return garages.add({
-      'address(Geo)': theAddressGeocode, // John Doe
-      'address': theAddress, // John Doe
-      'latitude': initLat, // Stokes and Sons
-      'longitude': initLng // 42
+      //'address(Geo)': theAddressGeocode, //
+      'address': _street, // given address (or) transformed address from given marker
+      'latitude': initLat, // given lat from marker (or) transformed lat from given address
+      'longitude': initLng // given lng from marker (or) transformed lng from given address
     })
         .then((value) => print("Garage Added"))
         .catchError((error) => print("Failed to add garage: $error"));
@@ -51,7 +52,7 @@ class _GoogleMapScreenState extends State<GoogleMapScreen> {
   @override
   void initState() {
     super.initState();
-    _markers.clear();
+    //_markers.clear();
 
     /// update lat & long with old data
     if (widget.previouslySavedPosition != null) {
@@ -78,20 +79,23 @@ class _GoogleMapScreenState extends State<GoogleMapScreen> {
             GoogleMap(
               myLocationEnabled: true,
               myLocationButtonEnabled: true,
-              onTap: (p) => setMarker(p.latitude, p.longitude, true),
+              onTap: (p) {
+                setMarker(p.latitude, p.longitude, true);
+
+                },
               onMapCreated: (GoogleMapController controller) => _controller.complete(controller),
               initialCameraPosition: CameraPosition(target: LatLng(initLat, initLng), zoom: 16.0),
-              markers: _markers.values.toSet(),
+              //markers: _markers.values.toSet(),
             ),
 
-            /// a save button that returns chosen position
+            /// save button that returns chosen position
             Container(
               margin: EdgeInsets.symmetric(horizontal: 70, vertical: 20),
               child: ElevatedButton(
                 onPressed: () {
-                  Fluttertoast.showToast(msg: '$theAddressGeocode');
+                  //Fluttertoast.showToast(msg: '$theAddressGeocode');
                   //Fluttertoast.showToast(msg: 'position = $lat - $lng');
-                  Navigator.pop(context, 'hiii!');
+                  _sendDataBack(context);
                   addGarage();
                 },
                 child: Container(
@@ -112,17 +116,14 @@ class _GoogleMapScreenState extends State<GoogleMapScreen> {
     final marker = Marker(
       draggable: editable,
       onDragEnd: (value) => setMarker(value.latitude, value.longitude, editable),
-      markerId: MarkerId('curr_loc'),
+      markerId: MarkerId('#ID'),
       position: LatLng(lat, long),
     );
-
-
-
     /// save the position and marker to the State
     setState(() {
       ///update the address string
       _getAdressFromLatLng(lat,long);
-      _getAdressFromLatLngGeocode(lat,long);
+      //_getAdressFromLatLngGeocode(lat,long);
       initLat = lat;
       initLng = long;
       _markers.clear();
@@ -139,27 +140,44 @@ class _GoogleMapScreenState extends State<GoogleMapScreen> {
     controller.animateCamera(CameraUpdate.newCameraPosition(cameraPosition));
   }
 
-
-  void _getAdressFromLatLng(double lat,double lng) async {
-    List<geocod.Placemark> newPlace = await geocod.placemarkFromCoordinates(lat, lng);
-
-    // this is all you need
+  String? _street = "";
+  String? _postalCode = "";
+  String? _locality = "";
+  String? _administrativeArea = "";
+  /// Converting.. { Coords => Adress }
+  void _getAdressFromLatLng(double? pLat, double? pLng) async {
+    List<geocod.Placemark> newPlace = await geocod.placemarkFromCoordinates(pLat ?? 0.0, pLng ?? 0.0);
     geocod.Placemark placeMark = newPlace[0];
+
     String? name = placeMark.name;
     String? subLocality = placeMark.subLocality;
     String? locality = placeMark.locality;
     String? administrativeArea = placeMark.administrativeArea;
     String? postalCode = placeMark.postalCode;
     String? street = placeMark.street;
-    String address = "ADRESS = name:${name}/ subLocality:${subLocality}/ locality:${locality}/ administrativeArea:${administrativeArea}/ postalCode:${postalCode}/ street:{$street}/";
 
-    print(address);
+    String address =
+        "ADRESS = name:${name}/ subLocality:${subLocality}/ locality:${locality}/ administrativeArea:${administrativeArea}/ postalCode:${postalCode}/ street:{$street}/";
 
     setState(() {
-      theAddress = address; // update _address
+      _street = street; // update _address
+      _postalCode = postalCode; // update _address
+      _locality = locality; // update _address
+      _administrativeArea = administrativeArea; // update _address
     });
   }
 
+  /// send Data back
+  void _sendDataBack(BuildContext context) {
+    Map<String,dynamic> data = Map<String,dynamic>();
+    data['street'] = _street;
+    data['postalCode'] = _postalCode;
+    data['locality'] = _locality;
+    data['administrativeArea'] = _administrativeArea;
+    Navigator.pop(context, data);
+  }
+  ///Geocode convert to address
+  /*
   Future<String> _getAdressFromLatLngGeocode(double? lat, double? lang) async {
     if (lat == null || lang == null) return "Null_Adress";
     GeoCode geoCode = GeoCode();
@@ -171,4 +189,5 @@ class _GoogleMapScreenState extends State<GoogleMapScreen> {
     });
     return _address;
   }
+  */
 }

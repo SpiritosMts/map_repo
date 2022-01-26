@@ -10,7 +10,7 @@ import 'package:geolocator/geolocator.dart';
 //import 'package:geoflutterfire/geoflutterfire.dart';
 import 'package:location/location.dart';
 //import 'package:geocoder/geocoder.dart';
-import "package:latlong/latlong.dart" as LatLng;
+//import "package:latlong/latlong.dart" as LatLng;
 import 'package:http/http.dart';
 
 
@@ -19,7 +19,247 @@ import 'package:http/http.dart';
 
 //depricated
 /*
+/*
+class MapScreen extends StatefulWidget {
+  const MapScreen({Key? key}) : super(key: key);
 
+  @override
+  _MapScreenState createState() => _MapScreenState();
+}
+
+class _MapScreenState extends State<MapScreen> {
+  late StreamSubscription _locationSubscription;
+  Location _locationTracker = Location();
+  late Marker marker ;
+  late Circle circle;
+  GoogleMapController _controller;
+
+  String location = '';
+  RxList mapList = <OffersModel>[];
+  var isLoading = true;
+
+  final allOfferCollection = FirebaseFirestore.instance.collection('all-offers');
+
+  Map<MarkerId, Marker> markers = <MarkerId, Marker>{
+  };
+
+  void initState() {
+    getMarkerData();
+    super.initState();
+  }
+
+  void initOffer(specify, specifyId) async
+  {
+    var p=specify['location'];
+    var markerIdVal = specifyId;
+    final MarkerId markerId = MarkerId(markerIdVal);
+    final Marker marker = Marker(
+        markerId: markerId,
+        position: LatLng(p['location'].latitude, p['location'].longitutde),
+        infoWindow: InfoWindow(title: specify['name'], snippet: specify['location'])
+    );
+    setState(() {
+      markers[markerId] = marker;
+    });
+  }
+
+  Future<DocumentReference> getMarkerData() async {
+    try {
+      allOfferCollection.get().then((snapshot) {
+        print(snapshot);
+        if(snapshot.docs.isNotEmpty){
+          for(int i= 0; i < snapshot.docs.length; i++)
+          {
+            initOffer(snapshot.docs[i].data, snapshot.docs[i].id);
+          }
+        }
+        snapshot.docs
+            .where((element) => element["location"] == location)
+            .forEach((element) {
+          if (element.exists) {
+            mapList.add(OffersModel.fromJson(element.data(), element.id));
+          }
+        });
+      });
+    } finally {
+      isLoading(false);
+    }
+  }
+
+  static final CameraPosition initialLocation = CameraPosition(
+    target: LatLng(36.723062, 3.087800),
+    zoom: 14.4746,
+    // zoom: 14,
+
+  );
+
+  Future<Uint8List> getMarker() async {
+    ByteData byteData = await DefaultAssetBundle.of(context).load("assets/marker.png");
+    return byteData.buffer.asUint8List();
+  }
+
+  void updateMarkerAndCircle(LocationData newLocalData, Uint8List imageData) {
+    LatLng latlng = LatLng(newLocalData.latitude, newLocalData.longitude);
+    this.setState(() {
+      marker = Marker(
+          markerId: MarkerId("home"),
+          position: latlng,
+          rotation: newLocalData.heading,
+          draggable: false,
+          zIndex: 2,
+          flat: true,
+          anchor: Offset(0.5, 0.5),
+          icon: BitmapDescriptor.fromBytes(imageData));
+
+    });
+  }
+
+  // void getCurrentLocation() async {
+  //   try {
+  //
+  //     Uint8List imageData = await getMarker();
+  //     var location = await _locationTracker.getLocation();
+  //
+  //     updateMarkerAndCircle(location, imageData);
+  //
+  //     if (_locationSubscription != null) {
+  //       _locationSubscription.cancel();
+  //     }
+  //
+  //     _locationSubscription = _locationTracker.onLocationChanged().listen((newLocalData) {
+  //       if (_controller != null) {
+  //         _controller.animateCamera(CameraUpdate.newCameraPosition(new CameraPosition(
+  //             bearing: 192.8334901395799,
+  //             target: LatLng(newLocalData.latitude, newLocalData.longitude),
+  //             tilt: 0,
+  //             zoom: 18.00
+  //         )));
+  //         updateMarkerAndCircle(newLocalData, imageData);
+  //       }
+  //     });
+  //
+  //   } on PlatformException catch (e) {
+  //     if (e.code == 'PERMISSION_DENIED') {
+  //       debugPrint("Permission Denied");
+  //     }
+  //   }
+  // }
+
+  @override
+  void dispose() {
+    if (_locationSubscription != null) {
+      _locationSubscription.cancel();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Scaffold(
+        body: GoogleMap(
+          mapType: MapType.normal,
+          initialCameraPosition: initialLocation,
+          markers: Set.of((marker != null) ? [marker] : []),
+          // circles: Set.of((circle != null) ? [circle] : []),
+          onMapCreated: (GoogleMapController controller) {
+            setState(() {
+              _controller = controller;
+            });
+          },
+          myLocationEnabled: true,
+          compassEnabled: true,
+
+        ),
+      ),
+    );
+  }
+}
+
+*/
+
+
+class GetMarkers extends StatefulWidget {
+  const GetMarkers({Key? key}) : super(key: key);
+
+  @override
+  _GetMarkersState createState() => _GetMarkersState();
+}
+class _GetMarkersState extends State<GetMarkers> {
+
+  Completer<GoogleMapController> mapController = Completer();
+  Set<Marker> markers = Set();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: StreamBuilder(
+        stream: FirebaseFirestore.instance.collection("Location").snapshots(),
+        builder: (context, snapshot) {
+          print(snapshot);
+          if (snapshot.hasData) {
+            //Extract the location from document
+            GeoPoint location = snapshot.data.docs.first.get("location");
+
+            // Check if location is valid
+            if (location == null) {
+              return Text("There was no location data");
+            }
+
+            // Remove any existing markers
+            markers.clear();
+
+            final latLng = LatLng(location.latitude, location.longitude);
+
+            // Add new marker with markerId.
+            markers
+                .add(Marker(markerId: MarkerId("location"), position: latLng));
+
+            // If google map is already created then update camera position with animation
+            mapController?.animateCamera(CameraUpdate.newCameraPosition(
+              CameraPosition(
+                target: latLng,
+                zoom: 1,
+              ),
+            ));
+
+            return GoogleMap(
+              initialCameraPosition: CameraPosition(
+                  target: LatLng(location.latitude, location.longitude)),
+              // Markers to be pointed
+              markers: markers,
+              onMapCreated: (GoogleMapController controller) {
+                mapController.complete(controller);
+              },
+            );
+          }
+          return Center(
+            child: CircularProgressIndicator(),
+          );
+        },
+      ),
+    );
+  }
+}
+
+void _currentLocation() async {
+    final GoogleMapController controller = await _controller.future;
+    LocationData currentLocation;
+    var location = new Location();
+    try {
+      currentLocation = await location.getLocation();
+    } on Exception {
+      currentLocation = null;
+    }
+
+    controller.animateCamera(CameraUpdate.newCameraPosition(
+      CameraPosition(
+        bearing: 0,
+        target: LatLng(currentLocation.latitude, currentLocation.longitude),
+        zoom: 17.0,
+      ),
+    ));
+  }
 getUserLocation() async {//call this async method from whereever you need
 
     LocationData myLocation;
@@ -373,5 +613,30 @@ class _GetMarkers2State extends State<GetMarkers2> {
   }
 }
 
+  /// Converting.. { Coords <=> Adress }
+  void _getAdressFromLatLng({double? pLat,double? pLng,String? pAddress}) async {
+    List<geocod.Placemark> newPlace = await geocod.placemarkFromCoordinates(pLat??0.0, pLng??0.0);
+    List<geocod.Location> newPos = await geocod.locationFromAddress(pAddress??'noInputAddress..');
+    geocod.Placemark placeMark = newPlace[0];
+    geocod.Location adressMark = newPos[0];
 
+    String? name = placeMark.name;
+    String? subLocality = placeMark.subLocality;
+    String? locality = placeMark.locality;
+    String? administrativeArea = placeMark.administrativeArea;
+    String? postalCode = placeMark.postalCode;
+    String? street = placeMark.street;
+
+    double? _addressToLat = adressMark.latitude;
+    double? _addressToLng = adressMark.longitude;
+
+    String address = "ADRESS = name:${name}/ subLocality:${subLocality}/ locality:${locality}/ administrativeArea:${administrativeArea}/ postalCode:${postalCode}/ street:{$street}/";
+    String position = "POSITION = latitude:${_addressToLat}/ longitude:${_addressToLng}";
+
+    setState(() {
+      coordsToAddress = address; // update _address
+      addressToLat = _addressToLat; // update lat
+      addressToLat = _addressToLat; // update lng
+    });
+  }
  */
